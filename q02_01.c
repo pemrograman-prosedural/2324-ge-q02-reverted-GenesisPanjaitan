@@ -2,69 +2,153 @@
 // 12S23012 - Genesis Tombak Dapot Tua Panjaitan
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
 #include "./libs/dorm.h"
-#include "./libs/gender.h"
 #include "./libs/student.h"
 
 int main(int _argc, char **_argv)
 {
-    char input [100];
-    int n = 0;
-    int size = 0;
-    struct dorm_t *dorm = malloc(size * sizeof(struct dorm_t));
-    int p = 0;
-    int size2 = 0;
-    struct student_t *mahasiswa = malloc(size2 * sizeof(struct student_t));
-    char *token;
+    struct dorm *dorms = malloc(1 * sizeof(dorm));
+    Student *students = (Student*) malloc(1 * sizeof(Student));
+    unsigned short totalDorm;
+    unsigned short totalStudent;
+    char line[255];
+    char delim[2] = "#";
 
-    while(1)
-    {
-        fgets(input, sizeof input, stdin);
-        while(1)
+
+    while ( 1 ) {
+        line[0] = '\0';
+        fgets(line, 255, stdin);
+        fflush(stdin);
+        
+        /* declared in scope level --> temporary
+           but the result remains */
         {
-            if(input[strlen(input) - 1] == '\n' || input[strlen(input) - 1] == '\r')
-            {
-                input[strlen(input) - 1] = '\0';
-            }
-            else
-            {
-                break;
+            int len = strlen(line);
+            for (short a = 0; a < len; a++) {
+                if(line[a] == '\r' || line[a] == '\n') {
+                    for(short b = a; b < len; b++) { line[b] = line[b + 1]; }
+                    len--;
+                    a--;
+                }
             }
         }
 
-        token = strtok(input, "#");
-        if(strcmp(token, "---") == 0)
-        {
-            break;
-        } else if(strcmp(token, "dorm-add") == 0)
-        {
-            size++;
-            dorm = realloc(dorm, size * sizeof(struct dorm_t));
-            dorm[n] = create_dorm(input);
-            n++;
-        } else if(strcmp(token, "dorm-print-all") == 0)
-        {
-            for(int i = 0; i < n; i++)
-            {
+        if ( strcmp(line, "---") == 0 ) break;
+
+        else if ( strcmp(line, "student-print-all") == 0 ) {
+            for (short i=0; i<totalStudent; i++) {
+                printStudent(students[i]);
+            }
+        }
+
+        else if ( strcmp(line, "dorm-print-all") == 0 ) {
+            for (short i=0; i<totalDorm; i++) {
                 print_dorm(dorm[i]);
             }
-        } else if(strcmp(token, "student-add") == 0)
-        {
-            size2++;
-            mahasiswa = realloc(mahasiswa, size2 * sizeof(struct student_t));
-            mahasiswa[p] = create_student(input);
-            p++;
-        } else if(strcmp(token, "student-print-all") == 0)
-        {
-            for(int i = 0; i < p; i++)
-            {
-                print_student(mahasiswa[i]);
+        }
+
+        else if ( strcmp(line, "student-print-all-detail") == 0 ) {
+            for (short i=0; i<totalStudent; i++) {
+                printStudentDetails(students[i]);
+            }
+            
+        }
+
+        else if ( strcmp(line, "dorm-print-all-detail") == 0 ) {
+            for (short i=0; i<totalDorm; i++) {
+                printDormDetails(dorm[i]);
+            }
+        }
+
+        else {
+            char *token = strtok(line, delim);
+
+            if ( strcmp(token, "student-add") == 0 ) {
+                token = strtok(NULL, delim); char *_id = token;
+                token = strtok(NULL, delim); char *_name = token;
+                token = strtok(NULL, delim); char *_year = token;
+                
+                token = strtok(NULL, delim);
+                if ( totalStudent > 0 ) {
+                    students = (Student*) realloc(students, (totalStudent+1) * sizeof(Student));
+                }
+                if ( strcmp(token, "male") == 0 ) {
+                    students[totalStudent] = create_student(_id, _name, _year, GENDER_MALE);
+                    totalStudent++;
+                }
+                else if ( strcmp(token, "female") == 0 ) {
+                    students[totalStudent] = create_student(_id, _name, _year, GENDER_FEMALE);
+                    totalStudent++;
+                }
+            }
+
+            else if ( strcmp(token, "dorm-add") == 0 ) {
+                token = strtok(NULL, delim); char *_name = token;
+                token = strtok(NULL, delim); unsigned short _capacity = atoi(token);
+                token = strtok(NULL, delim);
+                if ( totalDorm > 0 ) {
+                    dorms = (Dorm*) realloc(dorms, (totalDorm+1) * sizeof(Dorm));
+                }
+                if ( strcmp(token, "male") == 0 ) {
+                    dorms[totalDorm] = create_dorm(_name, _capacity, GENDER_MALE);
+                    totalDorm++;
+                }
+                else if ( strcmp(token, "female") == 0 ) {
+                    dorms[totalDorm] = create_dorm(_name, _capacity, GENDER_FEMALE);
+                    totalDorm++;
+                }
+            }
+
+            else if ( strcmp(token, "assign-student") == 0 ) {
+                token = strtok(NULL, delim); char *_id = token;
+                token = strtok(NULL, delim); char *dorm_name = token;
+
+                short studentIdx = findStudentIdx(_id, students, totalStudent);
+                short dormIdx = findDormIdx(dorm_name, dorms, totalDorm);
+
+                if ( studentIdx>=0 && dormIdx>=0 ) {
+                    assign(&students[studentIdx], & dorm[dormIdx]);
+                }
+            }
+      
+            else if ( strcmp(token, "move-student") == 0 ) {
+                token = strtok(NULL, delim); char *_id = token;
+                token = strtok(NULL, delim); char *dorm_name = token;
+
+                short studentIdx = findStudentIdx(_id, students, totalStudent);
+                short newDormIdx = findDormIdx(dorm_name, dorms, totalDorm);
+                char *_name = students[studentIdx].dorm->name;
+                if (_name != NULL) {
+                    short oldDormIdx = findDormIdx( _name, dorms, totalDorm );
+
+                    if ( studentIdx>=0 && newDormIdx>=0 && oldDormIdx>=0 ) {
+                        moveStudent(&students[studentIdx], &dorms[newDormIdx] , &dorms[oldDormIdx]);
+                    }
+                } else {
+                    assign(&students[studentIdx], &dorms[newDormIdx]);
+                }
+            }
+
+            else if ( strcmp(token, "dorm-empty") == 0 ) {
+                token = strtok(NULL, delim);
+                char *dorm_name = token;
+                short target = findDormIdx(dorm_name, dorms, totalDorm);
+                
+                // emptyDorm(&dorms[target], &students, totalStudent);
+
+                for (short i=0; i<totalStudent; i++) {
+                    if (students[i].dorm != NULL) {     /* MENGHINDARI STRING COMPARATION DGN NULL */
+                        if ( strcmp(students[i].dorm->name, dorm_name) == 0 ) {
+                            unassign(&students[i], &dorms[target]);
+                        }
+                    }
+                }
             }
         }
     }
-    free(dorm);
-    free(mahasiswa);
+    
+    
     return 0;
 }
